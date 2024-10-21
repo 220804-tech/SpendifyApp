@@ -1,0 +1,58 @@
+name: Build and Deploy Android App
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: '22.4.1'
+
+      - name: Set up Java 11
+        uses: actions/setup-java@v2
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Install App Center CLI
+        run: npm install -g appcenter-cli --legacy-peer-deps
+
+      - name: Build Android APK
+        run: |
+          cd android
+          ./gradlew assembleRelease
+
+      - name: List APK files
+        run: ls -la android/app/build/outputs/apk/release/
+
+      - name: Upload APK to App Center
+        run: |
+          appcenter distribute release \
+          --app rizkytech1-gmail.com/Jajaid \
+          --file android/app/build/outputs/apk/release/app-release.apk \
+          --group "Testers" \
+          --token ${{ secrets.APPCENTER_API_TOKEN }}
+
+      - name: Deploy OTA update to CodePush (Android)
+        run: |
+          appcenter codepush release-react \
+          -a rizkytech1-gmail.com/Jajaid \
+          -d Production \
+          --token ${{ secrets.APPCENTER_API_TOKEN }}
